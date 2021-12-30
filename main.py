@@ -96,4 +96,4 @@ mouse.move(-180, -762)
 time.sleep(1)
 mouse.click(Button.left)
 
-print("Script Finished.")
+print("Script Completed.")
