@@ -26,9 +26,11 @@ else:
     content_type = 1
     episode = data[1].strip()
 
-# content_type = 1
-# content = "mr robot"
-# episode = 6
+# content_type = 0
+# content = "Interstellar".lower()
+# episode = -1
+
+content_sleep = 3
 
 mouse = Controller()
 
@@ -49,7 +51,7 @@ search_field.send_keys(content)
 search_field.send_keys(Keys.RETURN)
 
 #Find the right show
-content_list = driver.find_elements_by_class_name("flw-item")
+content_list = driver.find_elements_by_class_name("flw-item")\
 
 for i in content_list:
     string = str(i.get_attribute("innerHTML").split('title="')[1])
@@ -75,9 +77,15 @@ if (content_type == 1):
             driver.find_element_by_id(links[i].split('"')[1]).click()
             break
 else:
-    print("movie")
+    # Grab movie links by providers
+    links = driver.find_elements_by_xpath('//*[@id="content-episodes"]/div/div/ul/li/a')
+    
+    # Try first link
+    link = links[0].click()
+    content_sleep = 3
+
 # Let page load
-time.sleep(3)
+time.sleep(content_sleep)
 
 # Initial Play Click
 mouse.position = (3579, 1030)

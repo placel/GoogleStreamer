@@ -19,7 +19,7 @@ client.on('message', message => {
     console.log(args)
     let content = args.join(" ")
 
-    if (command === 'stream') {
+    if (command === 'stream' && !content.includes("cancel")) {
         message.channel.send('Casting ' + content);
         const pythonScript = spawn('python3', ['main.py', content]);
 
