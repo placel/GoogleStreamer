@@ -8,7 +8,7 @@ const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_
 const prefix = '!';
 
 client.once('ready', () => {
-    console.log('Bot is active.')
+    console.log('Streamer is active.')
 });
 
 client.on('message', message => {
@@ -20,7 +20,6 @@ client.on('message', message => {
     let content = args.join(" ")
 
     if (command === 'stream' && !content.includes("cancel")) {
-        message.channel.send('Casting ' + content);
         const pythonScript = spawn('python3', ['main.py', content]);
 
         pythonScript.stderr.on('data', (data) => {
