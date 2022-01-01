@@ -7,6 +7,15 @@ const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_
 
 const prefix = '!';
 
+// Providers
+// const providers = {
+//     0: "ummagurau.py", 
+//     1: "soap2day.py"
+// }
+
+let providerCount = 2
+let provider = 1
+
 client.once('ready', () => {
     console.log('Streamer is active.')
 });
@@ -20,7 +29,7 @@ client.on('message', message => {
     let content = args.join(" ")
 
     if (command === 'stream' && !content.includes("cancel")) {
-        const pythonScript = spawn('python3', ['main.py', content]);
+        const pythonScript = spawn('python3', ['main.py', content, provider]);
 
         pythonScript.stderr.on('data', (data) => {
             console.log(data)
@@ -33,7 +42,8 @@ client.on('message', message => {
         pythonScript.stdin.on('data', (data) => {
             console.log(data.toString())
         });
-
+    } else if (command == 'switch' && !content.includes("cancel")) {
+        provider = ++provider % providerCount  
     }
 });
 
