@@ -1,6 +1,9 @@
 import sys
 import string
 import time
+import pickle
+import requests
+from bs4 import BeautifulSoup 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
@@ -9,12 +12,22 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from pynput.mouse import Button, Controller
 
+# Hash discord client ID
+
+# (Store dict for each resolution and provider, then store that in X_AXS, etc)
+# Use dict for screen resolution:
+# if 1920x1080, use the right X and Y axis 
+# and have number system for device listed;
+# if chromecast is the 3rd device shown, do (default_y * device_num)
+# to choose the proper device
+
 mouse = Controller() 
+tv_list = dict()
 
-# PROVIDER = int(sys.argv[2])
-PROVIDER = 1
-
-# TO DO: Remove punctuation from both searched and results so they match
+try:   
+    PROVIDER = int(sys.argv[2])
+except:
+    PROVIDER = 1
 
 PROVIDERS = [
     "https://www1.ummagurau.com/", 
@@ -50,9 +63,21 @@ Y_OFFSET = Y_OFFSETS[PROVIDER]
 
 # Prepare content
 data = str(sys.argv[1]).lower().split(",")
-count = len(data)
-content_type = 0
-content = " ".join((data[0].lower().translate(str.maketrans('', '', string.punctuation)).strip()).split()).replace(" ", "")
+content_type = int(sys.argv[3])
+content = " ".join((data[0].lower().translate(str.maketrans('', '', string.punctuation)).strip()).split())
+date = -1
+if ("from year" in content):
+    temp = content.split("from year")
+    content = temp[0]
+    date = int(temp[1])
+    print(date)
+
+if ("by date" in content):
+    temp = content.split("by date")
+    content = temp[0]
+    date = int(temp[1])
+    print(date)
+
 season = 1
 episode = 1
 season_id = ''
@@ -60,26 +85,40 @@ provider_sleep = 0
 
 content_sleep = 3
 
-# data = "Avengers endgame".lower().split(",")
-# count = len(data)
-# content_type = 0
+# data = "Curb your enthusiasm season 9, 10".lower().split(",")
+# content_type = 1
 # # content = " ".join(data[0].translate(str.maketrans('', '', string.punctuation)).lower().strip().split())
-# content = " ".join(data[0].translate(str.maketrans('', '', string.punctuation)).lower().split()).replace(" ", "")
-# print(content)
+# content = " ".join(data[0].translate(str.maketrans('', '', string.punctuation)).lower().split())
 # season = 1
 # episode = 1
 # season_id = ''
 
-if (count == 1):
-    content_type = 0 # 0 For Movie
-else:
-    content_type = 1 # 1 For TV Show
-    episode = data[1].strip()
-    has_season = "season" in data[0].lower()
+def update_tv_list(tv_list, content, season, episode):
+    tv_list[content.lower()] = str(str(season) + "x" + str(episode))
+    with open('tv_list.txt', 'wb') as f_list:
+        pickle.dump(tv_list, f_list)
+
+if (content_type == 1):
+
     if ("season" in data[0].lower()):
         extract = content.split("season")
         content = extract[0].strip()
         season = extract[1].strip()
+
+    # Finds the next episode to watch if episode not specified
+    with open('tv_list.txt', 'rb') as f_list:
+        tv_list = pickle.load(f_list)
+
+    try:
+        episode = data[1].strip()
+    except:
+        try:
+            watched = tv_list[content.lower()]
+            watched = str(watched).split("x")
+            season = int(watched[0])
+            episode = int(watched[1])
+        except:
+            episode = 1
 
 def init_chrome():
     # chrome_options.add_argument('--user-data-dir=/Users/logan/Documents/VSCode/LoganProfile')
@@ -105,7 +144,7 @@ def fullscreen():
     mouse.click(Button.left)
     mouse.click(Button.left)
     mouse.click(Button.left)
-    time.sleep(1)
+    time.sleep(2)
 
 # Chromecast Button
 def start_chromecast():
@@ -121,7 +160,24 @@ def start_chromecast():
     #     time.sleep(5)
     mouse.click(Button.left)
 
-def ummagurau():
+# This grabs the correct title of the desired content to search for (IMDB is more trustworthy than Google)
+# Beautifulsoup is a twice as fast as selenium
+def get_safe_search(content):
+    result = requests.get('https://www.imdb.com/find?q=' + content.replace(' ', '%20') + ('&s=tt&ttype=tv&ref_=fn_tv' if content_type == 1 else '&s=tt&ttype=ft&ref_=fn_ft'))
+    soup = BeautifulSoup(result.content, 'lxml')
+    listings = soup.find_all('td')
+
+    content = content.replace(" ", "")
+    for i in listings:
+        title = i.find('a').text
+        no_punc_no_space = " ".join(title.translate(str.maketrans('', '', string.punctuation)).lower().split()).replace(" ", "")
+        if content == no_punc_no_space:
+            content = title
+            break
+
+    return content
+
+def ummagurau(tv_list, content, season, episode, date):
     # Go to start page
     driver.get(MAIN_URL)
 
@@ -145,14 +201,16 @@ def ummagurau():
         counter += 1
     
     if (content_type == 1):
-            # Only change season if it's not the first season 
+        # Only change season if it's not the first season 
+        season_count = 1
         if (int(season) > 1):
             button = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, '//*[@id="content-episodes"]/div/div[2]/div[1]/div[1]/div/button')))
             button.click()
 
             seasons = driver.find_elements_by_xpath('//*[@id="content-episodes"]/div/div[2]/div[1]/div[1]/div/div/a')
+            season_count = len(seasons)
+            
             time.sleep(.5)
-        
             seasons[int(season)-1].click()
             season_id = seasons[int(season)-1].get_attribute('id').split("-")[1]
         else:
@@ -165,7 +223,14 @@ def ummagurau():
         for i in episodes:
             if (("Eps " + str(episode) + ":") in i.get_attribute('title')):
                 i.click()
+        
+        if (int(season) + 1 <= season_count and int(episode) + 1 > len(episodes)):
+            season = int(season) + 1
+            episode = 1
+        else:
+            episode = int(episode) + 1
 
+        update_tv_list(tv_list, content, season, episode)
         # episodes[int(episode)-1].click()
         time.sleep(2)
     else:
@@ -182,19 +247,15 @@ def ummagurau():
     fullscreen()
     start_chromecast()
 
-def soap2day(content):
-    driver.get('https://www.imdb.com/find?q=' + content.replace(' ', '%20') + ('&s=tt&ttype=tv&ref_=fn_tv' if content_type == 1 else '&s=tt&ttype=ft&ref_=fn_ft'))
+def soap2day(tv_list, content, season, episode, date):
+    # Don't know why 'content' doesn't exist in this context if it's not passed
 
-    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, '//*[@id="main"]/div/div[2]/table/tbody/tr/td[2]/a')))
-    listings = driver.find_elements_by_xpath('//*[@id="main"]/div/div[2]/table/tbody/tr/td[2]/a')
-
-    for i in listings:
-        title = i.get_attribute('innerHTML')
-        no_punc_no_space = " ".join(title.translate(str.maketrans('', '', string.punctuation)).lower().split()).replace(" ", "")
-        if content == no_punc_no_space:
-            content = title
-            break
+    # soap2day's search requires the exact text to get the result,
+    # so this grabs the correct title of the desired content to search for (IMDB is more trustworthy than Google)
+    content = get_safe_search(content)
     
+    # The site has some sort of bot detection, and may show multiple welcome pages before it lets you in.
+    # This tries to click  the 'Home' button forever until you're allowed access
     driver.get(MAIN_URL)
     try:
         while(True):
@@ -202,8 +263,8 @@ def soap2day(content):
     except:
         pass
 
-    # Remove {':', ','}
-
+    # Remove certain punctuation from searching text because this site only looks at what comes after or before, but not combined
+    # ex. Searching for 'Avengers: Endgame' shows 0 results, but searching for 'Avengers' or 'Endgame' alone returns the proper content
     safe_content = content
     if (':' in content):
         safe_content = content.split(':')[1]
@@ -218,27 +279,51 @@ def soap2day(content):
     if (content_type == 1):
         results = driver.find_elements_by_xpath('/html/body/div/div[2]/div/div[2]/div[2]/div[2]/div/div/div/div/div/div/div/div[2]/h5/a[1]')
 
+        count = 0
         for i in results:
+            count += 1
             if (content == i.get_attribute('innerHTML')):
+                # If a date was provided; choose the right result
+                if (date != -1):
+                    temp_date = driver.find_element_by_xpath('/html/body/div/div[2]/div/div[2]/div[2]/div[2]/div/div/div/div/div[1]/div[' + str(count) + ']/div/div[1]/div')
+                    if (not str(date) in temp_date.get_attribute('innerHTML')):
+                        continue
                 i.click()
                 break
 
         WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CLASS_NAME, 'thumbnail')))
 
         seasons = driver.find_elements_by_xpath('/html/body/div/div[2]/div/div[2]/div[1]/div/div/div/div[3]/div')
-
-        season_count = len(seasons)
-        get_season = driver.find_elements_by_xpath('/html/body/div/div[2]/div/div[2]/div[1]/div/div/div/div[3]/div[' + str(int(season_count) - (int(season) -1)) + ']/div/div/a')
-
+        
+        # The site shows seasons in reverse order (season 1 is at the bottom of the page);
+        # this 'hash function' finds the right xpath element to seach for the given season
+        get_season = driver.find_elements_by_xpath('/html/body/div/div[2]/div/div[2]/div[1]/div/div/div/div[3]/div[' + str(int(len(seasons)) - (int(season) -1)) + ']/div/div/a')
+        
         for i in get_season:
             if (str(episode) == i.get_attribute('innerHTML').split(".")[0]):
                 i.click()
                 break
+        
+        # If the last episode, and theres another season available, set to the next season on episode 1
+        if (int(season) + 1 <= len(seasons) and int(episode) + 1 > len(get_season)):
+            season = int(season) + 1
+            episode = 1
+        else:
+            episode = int(episode) + 1
+
+        update_tv_list(tv_list, content, season, episode)
     else:
         results = driver.find_elements_by_xpath('/html/body/div/div[2]/div/div[2]/div[1]/div[2]/div/div/div/div/div/div/div/div[2]/h5/a')
 
+        count = 0
         for i in results:
+            count += 1
             if (content == i.get_attribute('innerHTML')):
+                # If a date was provided; choose the right result
+                if (date != -1):
+                    temp_date = driver.find_element_by_xpath('/html/body/div/div[2]/div/div[2]/div[1]/div[2]/div/div/div/div/div[1]/div[' + str(count) + ']/div/div[1]/div')
+                    if (not str(date) in temp_date.get_attribute('innerHTML')):
+                        continue
                 i.click()
                 break
 
@@ -249,9 +334,9 @@ def soap2day(content):
 
 def get_stream():
     if (PROVIDER == 0):
-        ummagurau()
+        ummagurau(tv_list, content, season, episode, date)
     elif (PROVIDER == 1):
-        soap2day(content)
+        soap2day(tv_list, content, season, episode, date)
 
 def main():
     get_stream()
