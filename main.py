@@ -4,13 +4,30 @@ import time
 import pickle
 import requests
 from bs4 import BeautifulSoup 
-from selenium import webdriver
+from seleniumwire import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from pynput.mouse import Button, Controller
+
+# Click Chromecast TAG: google-cast-launcher
+
+# Skip intro:
+# XPATH: //*[@id="player"]/div[2]/div[7]/div/div/div
+# CLASS: jw-text-track-cue jw-reset
+# -----------------------
+# Subtitles CLASS: jw-settings-submenu-button, then by attribute 'aria-controls' and val 'jw-settings-submenu-captions'
+# Or click 'c' on keyboard until either XPATH: //*[@id="player"]/div[2]/div[12]/div[4]/div[2]/div[15]/div/div 
+# or CLASS: 'jw-text' == "English"
+# Then in a duplicated tab, seek through every 1-2 seconds and check subtitle text.
+# if ('THEME MUSIC') or similar is found, store time, then seek until next subtitle and store that time.
+# then switch tabs and skip the casting tab to that time in the episode
+#-------------------
+# https://gist.github.com/lorey/079c5e178c9c9d3c30ad87df7f70491d
+
+# If title is longer than 30 chars, cut off the buffer overflow
 
 # Hash discord client ID
 
@@ -161,7 +178,7 @@ def start_chromecast():
     mouse.click(Button.left)
 
 # This grabs the correct title of the desired content to search for (IMDB is more trustworthy than Google)
-# Beautifulsoup is a twice as fast as selenium
+# BeautifulSoup is twice as fast as selenium
 def get_safe_search(content):
     result = requests.get('https://www.imdb.com/find?q=' + content.replace(' ', '%20') + ('&s=tt&ttype=tv&ref_=fn_tv' if content_type == 1 else '&s=tt&ttype=ft&ref_=fn_ft'))
     soup = BeautifulSoup(result.content, 'lxml')
