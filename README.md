@@ -5,4 +5,6 @@ Dependencies:
 Selenium
 Pynput
 BeautifulSoup4
+lxml
 chromedriver (for correct platform)
+
