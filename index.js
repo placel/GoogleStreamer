@@ -31,21 +31,21 @@ client.on('messageCreate', message => {
     let content = args.join(" ")
 
     if (command === 'stream' && !content.includes("cancel")) {
-        // python3 for mac; python for windows
         const pythonScript = spawn('python3', ['main.py', content, provider, type]);
-
-        client.user.setActivity(content.split(",")[0]);
 
         pythonScript.stderr.on('data', (data) => {
             console.log(data)
         });
 
         pythonScript.stdout.on('data', (data) => {
+            if (data.toString().includes("Content: ")) {
+                client.user.setActivity(data.toString().replace("Content: ", "").replace("Script Finished.", ""));
+            }
             console.log(data.toString())
         });
-    } else if (command == 'switch' && !content.includes("cancel")) {
-        provider = ++provider % providerCount  
+    } else if (command == 'command' && !content.includes("cancel")) {
+        // provider = ++provider % providerCount  
     }
 });
 
-client.login('OTE3NTU4NDgyMjY0MjY4ODcw.Ya6c7Q.zpHX6wYRCGOv38gnq_6u4UpBUF0');
+client.login('OTE3NTU4NDgyMjY0MjY4ODcw.Ya6c7Q.eRemNJDKloZRyu2XbJd9h57pZMk');

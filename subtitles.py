@@ -38,14 +38,18 @@ while True:
 
             # RegEx that splits at the caption number into an array
             # ex. \\n92\\r\\n
-            captions = re.split(r"\\n\d{1,3}\\r\\n", caption_txt, 150)
+            captions = re.split(r"\\n\d{1,3}\\r\\n", caption_txt, 150) # Change depending on the runtime of the show
             count = 0
             for i in captions:
                 print(i)
+                if (count == -1):
+                    break
+                
                 if "THEME MUSIC" in i:
                     print("INTRO FOUND:")
                     print(i)
                     print(count)
+                    count = -1
                     break
                 count += 1
             exit()
