@@ -18,6 +18,9 @@ from selenium.webdriver.common.by import By
 from pynput.mouse import Button, Controller
 from pynput.keyboard import Key, Controller
 
+# Casting through JS https://stackoverflow.com/questions/46632109/start-cast-session-for-a-cast-device
+# MORE: https://gist.github.com/guerrerocarlos/3aca64069853d8d24a83b481246f23ca
+
 # s2dfree no captcha
 # https://s2dfree.is/enter.html
 
@@ -185,12 +188,13 @@ def init_chrome():
     caps['goog:loggingPrefs'] = {'performance': 'ALL'}
 
     chrome_options = Options()
-    chrome_options.add_argument("--disable-popup-blocking")
+    # chrome_options.add_argument("--disable-popup-blocking")
     chrome_options.add_argument('log-level=3')
     chrome_options.add_argument("no-default-browser-check")
     chrome_options.add_argument("no-first-run")
     chrome_options.add_extension('uBlock.crx') # Add uBlock to prevent redirects
     chrome_options.add_argument('--window-size=1920,1080')   
+    # chrome_options.add_argument('--headless')   
     return webdriver.Chrome(desired_capabilities=caps, options=chrome_options)
 
 driver = init_chrome()
@@ -293,7 +297,7 @@ def cast(device):
     # WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.TAG_NAME, 'google-cast-launcher'))).click()
     while(True):
         try:
-            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.TAG_NAME, 'google-cast-launcher'))).click()
+            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.TAG_NAME, 'google-cast-launcher'))).click()
             break
         except:
             continue
@@ -311,6 +315,8 @@ def cast(device):
 # This grabs the correct title of the desired content to search for (IMDB is more trustworthy than Google)
 # BeautifulSoup is twice as fast as selenium
 def get_safe_search(content):
+
+    # To ADD - if can't find the right content by spelling, go by date. ex (Inglorious Bastards vs Inglourious Basterds)
     result = requests.get('https://www.imdb.com/find?q=' + content.replace(' ', '%20') + ('&s=tt&ttype=tv&ref_=fn_tv' if content_type == 1 else '&s=tt&ttype=ft&ref_=fn_ft'))
     soup = BeautifulSoup(result.content, 'lxml')
     listings = soup.find_all('td') # Can be optimized to use class instead; cut listings in half
@@ -492,7 +498,8 @@ def soap2day(tv_list, content, season, episode, date):
                 break
         content += " (" + str(date) + ")"
 
-    cast(2)
+    print("URL: **" + str(driver.current_url) + "**")
+    #cast(2)
     # This print tell the Discord Bot what to display as status
     if (content_type == 1):
         print("Content: " + content + ": " + str(season) + "x" + str(int(episode) -1))
