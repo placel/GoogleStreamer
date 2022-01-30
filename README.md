@@ -5,4 +5,3 @@ Dependencies:
 Puppeteer
 Puppeteer Stealth
 Castv2
-
